@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Optional
 
 
 @dataclass
@@ -50,3 +51,29 @@ class TradeLog:  # SRP: immutable record of a single executed trade
     total_value: float
     reason: str
     sell_ratio: float = 0.0  # 1.0 for full sell, 0.5 for partial; 0.0 for BUY/HOLD
+
+
+@dataclass
+class BacktestResult:  # SRP: aggregated backtest statistics value object
+    period_start: datetime
+    period_end: datetime
+    total_trades: int
+    win_count: int
+    loss_count: int
+    win_rate: float          # percentage 0–100
+    total_return: float      # percentage, signed
+    mdd: float               # maximum drawdown percentage
+    avg_hold_minutes: float
+    trades_per_week: float
+    final_total: float       # KRW
+    # Exit-type breakdown — defaults allow BacktestRunner to construct without change;
+    # BacktestLogger.print_report() fills these in-place before rendering.
+    take_profit_1_count: int = 0    # 익절1: PARTIAL_SELL (50%) 발생 횟수
+    take_profit_2_count: int = 0    # 익절2: 잔량 전량 청산 (TP2 FORCE_SELL + RSI SELL)
+    force_sell_count: int = 0       # 손절: Stop-loss FORCE_SELL 발생 횟수
+    force_sell_at_level_1: int = 0  # level=1 상태에서 손절
+    force_sell_at_level_2: int = 0  # level=2 상태에서 손절
+    force_sell_at_level_3: int = 0  # level=3 상태에서 손절
+    avg_pnl_take_profit_1: float = 0.0  # 익절1 평균 손익률 (%)
+    avg_pnl_take_profit_2: float = 0.0  # 익절2 평균 손익률 (%)
+    avg_pnl_force_sell: float = 0.0     # 손절 평균 손익률 (%)
