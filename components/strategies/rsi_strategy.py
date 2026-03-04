@@ -17,7 +17,7 @@ class RSIStrategy(BaseStrategy):
     포트폴리오 보유 여부 등 상태 기반 필터링은 TradingAgent의 책임이다.
     """
 
-    def generate_signal(self, indicator: IndicatorResult) -> Signal:
+    def generate_signal(self, indicator: IndicatorResult, position_count: int = 0) -> Signal:
         prev_rsi = indicator.prev_rsi
         current_rsi = indicator.rsi
 

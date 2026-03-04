@@ -7,8 +7,13 @@ from core.models import Action, CandleData, IndicatorResult, Signal, TradeLog
 
 class BaseStrategy(ABC):  # OCP: new strategies extend without modifying this contract
     @abstractmethod
-    def generate_signal(self, indicator: IndicatorResult) -> Signal:
-        """Given indicator data, return a trading signal (BUY/SELL/HOLD)."""
+    def generate_signal(self, indicator: IndicatorResult, position_count: int = 0) -> Signal:
+        """Given indicator data and current position count, return a trading signal.
+
+        Args:
+            indicator:      Latest computed indicator snapshot.
+            position_count: Number of pyramid levels currently open (0 = flat).
+        """
         ...
 
 

@@ -24,10 +24,11 @@ class IndicatorResult:  # SRP: computed indicator snapshot
 
 
 class Action(Enum):  # OCP: extendable without modifying existing variants
-    BUY        = "BUY"
-    SELL       = "SELL"
-    HOLD       = "HOLD"
-    FORCE_SELL = "FORCE_SELL"
+    BUY          = "BUY"
+    SELL         = "SELL"
+    HOLD         = "HOLD"
+    FORCE_SELL   = "FORCE_SELL"
+    PARTIAL_SELL = "PARTIAL_SELL"
 
 
 @dataclass
@@ -40,11 +41,12 @@ class Signal:  # SRP: strategy decision value object
 @dataclass
 class TradeLog:  # SRP: immutable record of a single executed trade
     timestamp: datetime
-    action: str              # one of: BUY / SELL / HOLD / FORCE_SELL
+    action: str              # one of: BUY / SELL / HOLD / FORCE_SELL / PARTIAL_SELL
     price: float
-    amount: float            # BTC quantity
+    amount: float            # BTC quantity transacted
     fee: float
     cash_after: float
     btc_after: float
     total_value: float
     reason: str
+    sell_ratio: float = 0.0  # 1.0 for full sell, 0.5 for partial; 0.0 for BUY/HOLD

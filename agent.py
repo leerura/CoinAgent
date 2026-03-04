@@ -106,7 +106,9 @@ class TradingAgent:
         # DIP: agent calls the abstract check() interface, not a concrete rule.
         if self._portfolio.has_position():
             risk_signal = self._risk_manager.check(
-                current_price, self._portfolio.get_entry_price()
+                current_price,
+                self._portfolio.get_avg_entry_price(),
+                self._portfolio.is_partially_sold(),
             )
 
             if risk_signal is not None and risk_signal.action == Action.FORCE_SELL:
@@ -119,16 +121,34 @@ class TradingAgent:
                     btc=self._portfolio.get_btc_amount(),
                 )
                 self._portfolio.update(Action.FORCE_SELL, current_price, trade.amount, trade.fee)
+                self._logger.log_signal(risk_signal)
                 self._logger.log_trade(trade)
                 self._logger.log_status(self._portfolio, current_price)
                 return  # ← critical: skip strategy evaluation entirely
 
-        # ── Step 5: STRATEGY SIGNAL (only if no FORCE_SELL triggered) ─────
+            if risk_signal is not None and risk_signal.action == Action.PARTIAL_SELL:
+                # Partial exit at first take-profit level; position stays open.
+                trade = self._executor.execute(
+                    action=Action.PARTIAL_SELL,
+                    price=current_price,
+                    cash=self._portfolio.get_cash(),
+                    btc=self._portfolio.get_btc_amount(),
+                )
+                self._portfolio.update(Action.PARTIAL_SELL, current_price, trade.amount, trade.fee)
+                self._logger.log_signal(risk_signal)
+                self._logger.log_trade(trade)
+                self._logger.log_status(self._portfolio, current_price)
+                return  # skip strategy — risk action takes precedence this cycle
+
+        # ── Step 5: STRATEGY SIGNAL (only if no risk action triggered) ────
         # SRP: strategy decides what action to take; agent only routes the result.
-        signal = self._strategy.generate_signal(indicator_result)
+        # position_count is forwarded so the strategy can enforce pyramid limits.
+        signal = self._strategy.generate_signal(
+            indicator_result, self._portfolio.get_position_count()
+        )
         self._logger.log_signal(signal)
 
-        if signal.action == Action.BUY and not self._portfolio.has_position():
+        if signal.action == Action.BUY and self._portfolio.get_position_count() < config.MAX_POSITION_LEVELS:
             trade = self._executor.execute(
                 action=Action.BUY,
                 price=current_price,

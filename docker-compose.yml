@@ -1,0 +1,15 @@
+services:
+  coin-agent:
+    image: leerura/coin-agent:latest
+    restart: unless-stopped # 컨테이너 비정상 종료 시 자동 재시작; docker stop은 재시작 안 함
+    env_file:
+      - .env # 민감 설정(API 키 등)은 .env로 관리 — 이미지에 포함하지 않음
+    volumes:
+      - ./logs:/app/logs # 로그 파일 호스트에 영속 보존 (일별 로테이션, 7일 보관)
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-group: "/coin-agent/logs"
+        awslogs-region: "us-east-1" # EC2 리전에 맞게 변경
+        awslogs-stream: "coin-agent"
+        awslogs-create-group: "true" # CloudWatch 로그 그룹 없으면 자동 생성

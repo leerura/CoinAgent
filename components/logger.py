@@ -10,6 +10,7 @@ from pathlib import Path
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from config import MAX_POSITION_LEVELS
 from core.models import Action, Signal, TradeLog
 
 # Lazy import to avoid circular dependency — Portfolio is not in interfaces.py
@@ -29,7 +30,7 @@ def _action_color(action: str) -> str:
     """Map an action string to its ANSI color prefix."""
     if action in ("BUY",):
         return _GREEN
-    if action in ("SELL", "FORCE_SELL"):
+    if action in ("SELL", "FORCE_SELL", "PARTIAL_SELL"):
         return _RED
     return ""  # HOLD — no color
 
@@ -121,6 +122,8 @@ class Logger:
             f"cash={trade.cash_after:,.0f} KRW | "
             f"total={trade.total_value:,.0f} KRW"
         )
+        if trade.action in ("SELL", "FORCE_SELL", "PARTIAL_SELL"):
+            msg += f" | sell_ratio={trade.sell_ratio:.1%}"
         if trade.reason:
             msg += f" | {trade.reason}"
         color = _action_color(trade.action)
@@ -131,15 +134,17 @@ class Logger:
         self._logger.error(msg, extra={"color": f"{_BOLD}{_RED}"})
 
     def log_status(self, portfolio: "Portfolio", current_price: float) -> None:
-        entry     = portfolio.get_entry_price()
-        entry_str = f"{entry:,.0f}" if entry is not None else "-"
+        avg_entry     = portfolio.get_avg_entry_price()
+        avg_entry_str = f"{avg_entry:,.0f}" if avg_entry is not None else "-"
+        position_count = portfolio.get_position_count()
         total     = portfolio.get_total_value(current_price)
         win_rate  = portfolio.get_win_rate() * 100
         msg = (
             f"[STATUS] "
             f"cash={portfolio.get_cash():,.0f} KRW | "
             f"btc={portfolio.get_btc_amount():.8f} | "
-            f"entry={entry_str} | "
+            f"avg_entry={avg_entry_str} | "
+            f"level={position_count}/{MAX_POSITION_LEVELS} | "
             f"total={total:,.0f} KRW | "
             f"win_rate={win_rate:.1f}%"
         )
@@ -201,8 +206,23 @@ if __name__ == "__main__":
         btc_after=0.0,
         total_value=101_900.0,
         reason="",
+        sell_ratio=1.0,
     )
     logger.log_trade(sell_trade)
+
+    partial_trade = TradeLog(
+        timestamp=datetime.now(),
+        action="PARTIAL_SELL",
+        price=96_000_000.0,
+        amount=0.00001061,
+        fee=51.0,
+        cash_after=90_900.0,
+        btc_after=0.00001062,
+        total_value=90_900.0 + 0.00001062 * 96_000_000.0,
+        reason="Take-profit-1",
+        sell_ratio=0.5,
+    )
+    logger.log_trade(partial_trade)
 
     # 3) Status
     portfolio = Portfolio(initial_cash=100_000.0)
