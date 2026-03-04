@@ -20,7 +20,8 @@ INITIAL_CASH: float = 100_000.0  # Virtual starting balance (KRW)
 # Loop timing
 INTERVAL_SEC: int = 60  # Main loop interval in seconds
 
-# Data collection — must exceed RSI_PERIOD for valid RSI calculation
+# Data collection — must be >= RSI_PERIOD + 2 (rsi + prev_rsi both needed)
 CANDLE_COUNT: int = 20
 
-assert CANDLE_COUNT > RSI_PERIOD, "CANDLE_COUNT must exceed RSI_PERIOD for valid RSI calculation"
+# +2: ta library needs RSI_PERIOD+1 for first valid RSI, and one more for prev_rsi (crossover detection)
+assert CANDLE_COUNT >= RSI_PERIOD + 2, "CANDLE_COUNT must be >= RSI_PERIOD + 2 (need both rsi and prev_rsi)"
