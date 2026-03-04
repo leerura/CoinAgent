@@ -38,7 +38,9 @@ class RiskManager:
                 timestamp=datetime.now(),
             )
 
-        # Stage 2: full exit at TAKE_PROFIT_2 (+3%)
+        # Stage 2: full exit at TAKE_PROFIT_2 (+3%) — price condition only.
+        # RSI condition removed from TP2. Backtest showed RSI was triggering early
+        # exits at avg +0.48% instead of the intended +3%. Price-only condition retained.
         if pnl_ratio >= TAKE_PROFIT_2:
             return Signal(
                 action=Action.FORCE_SELL,

@@ -17,11 +17,14 @@ TAKE_PROFIT_2: float = 0.03   # +3% from avg entry → full exit
 
 # Order sizing
 POSITION_SIZE_RATIO: float = 0.20  # 20% of available cash per trade
-# POSITION_SIZE_RATIO=0.20 x 3 levels ≈ 49% max deployment.
-# ~51% cash reserve is intentional — acts as drawdown buffer. Do not increase without backtesting.
+# POSITION_SIZE_RATIO=0.20 x 2 levels ≈ 36% max deployment.
+# ~64% cash reserve is intentional — acts as drawdown buffer. Do not increase without backtesting.
 
 # Pyramid re-entry
-MAX_POSITION_LEVELS: int = 3  # Maximum number of pyramid buy levels
+# Reduced from 3 → 2 based on backtest analysis.
+# Level 3 accounted for 70% of stop-losses with ~49% capital at risk.
+# Level 2 cap reduces max deployed capital to ~36%, improving loss symmetry.
+MAX_POSITION_LEVELS: int = 2  # Maximum number of pyramid buy levels
 
 # Partial sell
 PARTIAL_SELL_RATIO: float = 0.5   # Fraction of BTC to sell at first take-profit
