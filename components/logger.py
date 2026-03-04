@@ -14,7 +14,7 @@ from config import MAX_POSITION_LEVELS
 from core.models import Action, Signal, TradeLog
 
 # Lazy import to avoid circular dependency — Portfolio is not in interfaces.py
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from components.portfolio import Portfolio
 
@@ -105,6 +105,48 @@ class Logger:
         # Prevent propagation to the root logger (avoids duplicate output)
         self._logger.propagate = False
 
+        # ── Trade duration & frequency tracking ───────────────────────────
+        # Mirrors Portfolio position state so Logger needs no external dependencies.
+        self._entry_timestamp: Optional[datetime] = None
+        self._logger_btc: float = 0.0
+        self._logger_avg_entry: Optional[float] = None
+
+        # Daily summary counters — reset at midnight rollover
+        self._current_day: str = ""
+        self._day_trades: int = 0
+        self._day_wins: int = 0
+        self._day_losses: int = 0
+        self._day_hold_minutes: list = []
+
+    # ── Private helpers ───────────────────────────────────────────────────────
+
+    def _check_day_rollover(self, ts: datetime) -> None:
+        """Emit a daily summary and reset counters when the date changes."""
+        today = ts.strftime("%Y-%m-%d")
+        if self._current_day and today != self._current_day:
+            self._log_daily_summary()
+            self._day_trades = 0
+            self._day_wins = 0
+            self._day_losses = 0
+            self._day_hold_minutes = []
+        self._current_day = today
+
+    def _log_daily_summary(self) -> None:
+        avg_hold = (
+            sum(self._day_hold_minutes) / len(self._day_hold_minutes)
+            if self._day_hold_minutes else 0.0
+        )
+        total = self._day_wins + self._day_losses
+        win_rate = self._day_wins / total * 100 if total else 0.0
+        msg = (
+            f"[DAILY ] date={self._current_day} | "
+            f"trades={self._day_trades} | "
+            f"wins={self._day_wins} | losses={self._day_losses} | "
+            f"win_rate={win_rate:.1f}% | "
+            f"avg_hold={avg_hold:.1f}min"
+        )
+        self._logger.info(msg, extra={"color": _CYAN})
+
     # ── Public interface ──────────────────────────────────────────────────────
 
     def log_signal(self, signal: Signal) -> None:
@@ -114,6 +156,8 @@ class Logger:
         self._logger.info(msg, extra={"color": color})
 
     def log_trade(self, trade: TradeLog) -> None:
+        self._check_day_rollover(trade.timestamp)
+
         msg = (
             f"[TRADE ] {trade.action} | "
             f"price={trade.price:,.0f} | "
@@ -128,6 +172,59 @@ class Logger:
             msg += f" | {trade.reason}"
         color = _action_color(trade.action)
         self._logger.info(msg, extra={"color": color})
+
+        # ── Internal position tracking (mirrors Portfolio for hold-duration / P&L) ──
+        if trade.action == "BUY" and trade.amount > 0:
+            if self._entry_timestamp is None:
+                self._entry_timestamp = trade.timestamp
+            # Weighted-average entry price across pyramid levels
+            if self._logger_avg_entry is None or self._logger_btc == 0.0:
+                self._logger_avg_entry = trade.price
+            else:
+                total_btc = self._logger_btc + trade.amount
+                self._logger_avg_entry = (
+                    (self._logger_btc * self._logger_avg_entry + trade.amount * trade.price)
+                    / total_btc
+                )
+            self._logger_btc += trade.amount
+
+        elif trade.action == "PARTIAL_SELL" and trade.amount > 0:
+            # Reduce tracked BTC; keep entry_timestamp and avg_entry for the remaining position
+            self._logger_btc = max(0.0, self._logger_btc - trade.amount)
+
+        elif trade.action in ("SELL", "FORCE_SELL") and trade.amount > 0:
+            hold_minutes = 0.0
+            if self._entry_timestamp is not None:
+                hold_minutes = (trade.timestamp - self._entry_timestamp).total_seconds() / 60
+                self._day_hold_minutes.append(hold_minutes)
+
+            pnl_pct = 0.0
+            if self._logger_avg_entry is not None and self._logger_avg_entry > 0:
+                pnl_pct = (trade.price - self._logger_avg_entry) / self._logger_avg_entry * 100
+
+            entry_str = (
+                self._entry_timestamp.strftime("%H:%M:%S")
+                if self._entry_timestamp else "-"
+            )
+            exit_msg = (
+                f"[EXIT  ] "
+                f"entry={entry_str} | "
+                f"exit={trade.timestamp.strftime('%H:%M:%S')} | "
+                f"hold={hold_minutes:.0f}min | "
+                f"pnl={pnl_pct:+.2f}%"
+            )
+            self._logger.info(exit_msg, extra={"color": color})
+
+            self._day_trades += 1
+            if pnl_pct > 0:
+                self._day_wins += 1
+            else:
+                self._day_losses += 1
+
+            # Reset for next trade cycle
+            self._entry_timestamp = None
+            self._logger_btc = 0.0
+            self._logger_avg_entry = None
 
     def log_error(self, message: str) -> None:
         msg = f"[ERROR ] {message}"

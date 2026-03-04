@@ -13,7 +13,7 @@ class Portfolio:
     Pyramid support:
     - avg_entry_price is recalculated as a weighted average on each BUY.
     - position_count tracks how many pyramid levels are open (0 = flat).
-    - partial_sell() sells a fraction of BTC without resetting position_count.
+    - partial_sell() sells a fraction of BTC and resets position_count to 0 (re-entry allowed).
     - Full sells (SELL / FORCE_SELL) reset both avg_entry_price and position_count.
     """
 
@@ -83,7 +83,10 @@ class Portfolio:
             self._cash += proceeds
             self._btc_amount -= amount
             self._is_partially_sold = True
-            # avg_entry_price and position_count are intentionally unchanged
+            # avg_entry_price kept — guards TAKE_PROFIT_2 and FORCE_SELL correctly.
+            # position_count reset to 0 so the strategy can re-enter on the next
+            # valid RSI crossover signal after the partial sell.
+            self._position_count = 0
 
         elif action in (Action.SELL, Action.FORCE_SELL):
             proceeds = price * amount - fee
