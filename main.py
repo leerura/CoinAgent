@@ -15,7 +15,7 @@ from components.indicator_engine import IndicatorEngine
 from components.logger import Logger
 from components.portfolio import Portfolio
 from components.risk_manager import RiskManager
-from components.strategies.rsi_strategy import RSIStrategy
+from components.strategies.ema_rsi_strategy import EMARSIStrategy
 
 
 def main() -> None:
@@ -45,7 +45,7 @@ def main() -> None:
 
     # 4. Strategy: interprets indicators and emits trading signals.
     #    OCP: swap RSIStrategy for any other BaseStrategy without changing agent.py.
-    strategy = RSIStrategy()
+    strategy = EMARSIStrategy()
 
     # 5. Risk manager: price-based exit rules (stop-loss / take-profit).
     risk_manager = RiskManager()

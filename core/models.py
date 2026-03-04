@@ -16,8 +16,10 @@ class CandleData:  # SRP: raw OHLCV value object
 
 @dataclass
 class IndicatorResult:  # SRP: computed indicator snapshot
-    rsi: float          # range: 0–100
-    prev_rsi: float     # for crossover detection
+    rsi: float           # range: 0–100
+    prev_rsi: float      # for crossover detection
+    ema_200: float       # EMA(200) trend filter — price above = uptrend
+    current_price: float # latest candle close; used for EMA trend comparison
     timestamp: datetime
 
 
