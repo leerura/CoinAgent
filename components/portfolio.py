@@ -48,7 +48,8 @@ class Portfolio:
         return self._is_partially_sold
 
     def has_position(self) -> bool:
-        return self._position_count > 0
+        return self._btc_amount > 0
+
 
     # ── State mutations ────────────────────────────────────────────────────────
 
