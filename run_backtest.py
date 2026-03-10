@@ -54,8 +54,7 @@ def main() -> None:
     print(f"  RSI oversold      : {config.RSI_OVERSOLD} (BUY threshold)")
     print(f"  RSI overbought    : {config.RSI_OVERBOUGHT} (SELL threshold)")
     print(f"  Stop-loss         : {config.STOP_LOSS * 100:.1f}%")
-    print(f"  Take-profit 1     : {config.TAKE_PROFIT_1 * 100:.1f}% (partial)")
-    print(f"  Take-profit 2     : {config.TAKE_PROFIT_2 * 100:.1f}% (full)")
+    print(f"  Take-profit       : {config.TAKE_PROFIT_2 * 100:.1f}% (full)")
     print("=" * 56)
 
     # ── Component assembly (same order as main.py) ────────────────────────────

@@ -74,40 +74,26 @@ class BacktestRunner:
                 risk_signal = self._risk_manager.check(
                     current_price,
                     self._portfolio.get_avg_entry_price(),
-                    self._portfolio.is_partially_sold(),
+                    rsi=indicator_result.rsi,
+                    prev_rsi=indicator_result.prev_rsi,
                 )
 
-                if risk_signal is not None and risk_signal.action == Action.FORCE_SELL:
+                if risk_signal is not None and risk_signal.action in (Action.FORCE_SELL, Action.SELL):
+                    exit_action = risk_signal.action
                     trade = self._executor.execute(
-                        action=Action.FORCE_SELL,
+                        action=exit_action,
                         price=current_price,
                         cash=self._portfolio.get_cash(),
                         btc=self._portfolio.get_btc_amount(),
                     )
                     trade = dc_replace(trade, timestamp=candle_ts)
                     self._portfolio.update(
-                        Action.FORCE_SELL, current_price, trade.amount, trade.fee
+                        exit_action, current_price, trade.amount, trade.fee
                     )
                     self._logger.log_signal(risk_signal)
                     self._logger.log_trade(trade)
                     self._logger.log_status(self._portfolio, current_price)
                     continue  # skip strategy — risk takes full priority this tick
-
-                if risk_signal is not None and risk_signal.action == Action.PARTIAL_SELL:
-                    trade = self._executor.execute(
-                        action=Action.PARTIAL_SELL,
-                        price=current_price,
-                        cash=self._portfolio.get_cash(),
-                        btc=self._portfolio.get_btc_amount(),
-                    )
-                    trade = dc_replace(trade, timestamp=candle_ts)
-                    self._portfolio.update(
-                        Action.PARTIAL_SELL, current_price, trade.amount, trade.fee
-                    )
-                    self._logger.log_signal(risk_signal)
-                    self._logger.log_trade(trade)
-                    self._logger.log_status(self._portfolio, current_price)
-                    continue
 
             # ── Step 2: Strategy signal ────────────────────────────────────────
             signal = self._strategy.generate_signal(

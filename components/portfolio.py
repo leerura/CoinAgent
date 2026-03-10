@@ -10,10 +10,8 @@ class Portfolio:
     compute fees, or decide when to trade — those responsibilities belong to
     SimulationOrderExecutor. Fees are accepted as pre-computed values via update().
 
-    Pyramid support:
-    - avg_entry_price is recalculated as a weighted average on each BUY.
-    - position_count tracks how many pyramid levels are open (0 = flat).
-    - partial_sell() sells a fraction of BTC and resets position_count to 0 (re-entry allowed).
+    Single-entry strategy:
+    - position_count is 0 (flat) or 1 (in position).
     - Full sells (SELL / FORCE_SELL) reset both avg_entry_price and position_count.
     """
 
@@ -21,8 +19,7 @@ class Portfolio:
         self._cash: float = initial_cash
         self._btc_amount: float = 0.0
         self._avg_entry_price: Optional[float] = None  # None means no open position
-        self._position_count: int = 0                  # 0 = flat; max = MAX_POSITION_LEVELS
-        self._is_partially_sold: bool = False          # True after first take-profit partial sell
+        self._position_count: int = 0                  # 0 = flat; 1 = in position
         self._wins: int = 0
         self._losses: int = 0
 
@@ -44,9 +41,6 @@ class Portfolio:
     def get_position_count(self) -> int:
         return self._position_count
 
-    def is_partially_sold(self) -> bool:
-        return self._is_partially_sold
-
     def has_position(self) -> bool:
         return self._btc_amount > 0
 
@@ -65,29 +59,9 @@ class Portfolio:
         if action == Action.BUY:
             cost = price * amount + fee
             self._cash -= cost
-
-            # Weighted-average entry price across all pyramid levels
-            if self._avg_entry_price is None or self._btc_amount == 0.0:
-                self._avg_entry_price = price
-            else:
-                total_btc = self._btc_amount + amount
-                self._avg_entry_price = (
-                    (self._btc_amount * self._avg_entry_price + amount * price) / total_btc
-                )
-
+            self._avg_entry_price = price
             self._btc_amount += amount
             self._position_count += 1
-
-        elif action == Action.PARTIAL_SELL:
-            # Partial exit: sell a fraction of BTC, keep position open
-            proceeds = price * amount - fee
-            self._cash += proceeds
-            self._btc_amount -= amount
-            self._is_partially_sold = True
-            # avg_entry_price kept — guards TAKE_PROFIT_2 and FORCE_SELL correctly.
-            # position_count reset to 0 so the strategy can re-enter on the next
-            # valid RSI crossover signal after the partial sell.
-            self._position_count = 0
 
         elif action in (Action.SELL, Action.FORCE_SELL):
             proceeds = price * amount - fee
@@ -103,18 +77,8 @@ class Portfolio:
             self._btc_amount = 0.0
             self._avg_entry_price = None
             self._position_count = 0
-            self._is_partially_sold = False
 
         # HOLD: no state change
-
-    def partial_sell(self, ratio: float, price: float, fee: float) -> None:
-        """Convenience wrapper: sell `ratio` of current BTC holdings.
-
-        Delegates to update() with the computed BTC amount so the win/loss
-        and position_count logic stays in one place.
-        """
-        amount = self._btc_amount * ratio
-        self.update(Action.PARTIAL_SELL, price, amount, fee)
 
     # ── Portfolio metrics ──────────────────────────────────────────────────────
 

@@ -108,37 +108,25 @@ class TradingAgent:
             risk_signal = self._risk_manager.check(
                 current_price,
                 self._portfolio.get_avg_entry_price(),
-                self._portfolio.is_partially_sold(),
+                rsi=indicator_result.rsi,
+                prev_rsi=indicator_result.prev_rsi,
             )
 
-            if risk_signal is not None and risk_signal.action == Action.FORCE_SELL:
-                # Execute forced exit; log; return immediately.
+            if risk_signal is not None and risk_signal.action in (Action.FORCE_SELL, Action.SELL):
+                # Execute exit; log; return immediately.
                 # INTENTIONAL early return — Strategy must NOT override RiskManager.
+                exit_action = risk_signal.action
                 trade = self._executor.execute(
-                    action=Action.FORCE_SELL,
+                    action=exit_action,
                     price=current_price,
                     cash=self._portfolio.get_cash(),
                     btc=self._portfolio.get_btc_amount(),
                 )
-                self._portfolio.update(Action.FORCE_SELL, current_price, trade.amount, trade.fee)
+                self._portfolio.update(exit_action, current_price, trade.amount, trade.fee)
                 self._logger.log_signal(risk_signal)
                 self._logger.log_trade(trade)
                 self._logger.log_status(self._portfolio, current_price)
                 return  # ← critical: skip strategy evaluation entirely
-
-            if risk_signal is not None and risk_signal.action == Action.PARTIAL_SELL:
-                # Partial exit at first take-profit level; position stays open.
-                trade = self._executor.execute(
-                    action=Action.PARTIAL_SELL,
-                    price=current_price,
-                    cash=self._portfolio.get_cash(),
-                    btc=self._portfolio.get_btc_amount(),
-                )
-                self._portfolio.update(Action.PARTIAL_SELL, current_price, trade.amount, trade.fee)
-                self._logger.log_signal(risk_signal)
-                self._logger.log_trade(trade)
-                self._logger.log_status(self._portfolio, current_price)
-                return  # skip strategy — risk action takes precedence this cycle
 
         # ── Step 5: STRATEGY SIGNAL (only if no risk action triggered) ────
         # SRP: strategy decides what action to take; agent only routes the result.

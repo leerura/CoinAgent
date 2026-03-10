@@ -25,11 +25,10 @@ class IndicatorResult:  # SRP: computed indicator snapshot
 
 
 class Action(Enum):  # OCP: extendable without modifying existing variants
-    BUY          = "BUY"
-    SELL         = "SELL"
-    HOLD         = "HOLD"
-    FORCE_SELL   = "FORCE_SELL"
-    PARTIAL_SELL = "PARTIAL_SELL"
+    BUY        = "BUY"
+    SELL       = "SELL"
+    HOLD       = "HOLD"
+    FORCE_SELL = "FORCE_SELL"
 
 
 @dataclass
@@ -68,12 +67,7 @@ class BacktestResult:  # SRP: aggregated backtest statistics value object
     final_total: float       # KRW
     # Exit-type breakdown — defaults allow BacktestRunner to construct without change;
     # BacktestLogger.print_report() fills these in-place before rendering.
-    take_profit_1_count: int = 0    # 익절1: PARTIAL_SELL (50%) 발생 횟수
-    take_profit_2_count: int = 0    # 익절2: 잔량 전량 청산 (TP2 FORCE_SELL + RSI SELL)
+    take_profit_2_count: int = 0    # 익절 (TP FORCE_SELL + RSI SELL)
     force_sell_count: int = 0       # 손절: Stop-loss FORCE_SELL 발생 횟수
-    force_sell_at_level_1: int = 0  # level=1 상태에서 손절
-    force_sell_at_level_2: int = 0  # level=2 상태에서 손절
-    force_sell_at_level_3: int = 0  # level=3 상태에서 손절
-    avg_pnl_take_profit_1: float = 0.0  # 익절1 평균 손익률 (%)
-    avg_pnl_take_profit_2: float = 0.0  # 익절2 평균 손익률 (%)
+    avg_pnl_take_profit_2: float = 0.0  # 익절 평균 손익률 (%)
     avg_pnl_force_sell: float = 0.0     # 손절 평균 손익률 (%)

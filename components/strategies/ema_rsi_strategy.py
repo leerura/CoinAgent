@@ -4,23 +4,22 @@
 from datetime import datetime
 from typing import Optional
 
-from config import MAX_POSITION_LEVELS, RSI_OVERBOUGHT, RSI_OVERSOLD
+from config import MAX_POSITION_LEVELS, RSI_OVERSOLD
 from core.interfaces import BaseStrategy
 from core.models import Action, IndicatorResult, Signal
 
 
 class EMARSIStrategy(BaseStrategy):
     """
-    EMA(200) 추세 필터 + RSI(14) 크로스오버로 BUY/SELL/HOLD 시그널을 생성한다.
+    EMA(200) 추세 필터 + RSI(14) 크로스오버로 BUY/HOLD 시그널을 생성한다.
 
     설계 원칙:
     - SRP: 시그널 생성만 담당 — 실행/리스크 로직 없음.
     - OCP: BaseStrategy 인터페이스 구현 — main.py에서 DI로 교체 가능.
 
     전략 논리:
-    - BUY : 가격이 EMA(200) 위에 있고(상승 추세), RSI가 과매도(40) 기준선을 하→상 돌파.
-            position_count < MAX_POSITION_LEVELS일 때만 허용 (피라미딩 상한).
-    - SELL: RSI가 과매수(60) 기준선을 상→하 돌파 (추세 무관하게 차익 실현).
+    - BUY : 가격이 EMA(200) 위에 있고(상승 추세), RSI가 과매도(35) 기준선을 하→상 돌파.
+            position_count < MAX_POSITION_LEVELS일 때만 허용.
     - HOLD: 위 조건 미충족, 또는 동일 캔들 중복 진입 방지.
 
     중복 진입 방지 (deduplication guard):
@@ -41,8 +40,7 @@ class EMARSIStrategy(BaseStrategy):
             )
 
         price_above_ema = indicator.current_price > indicator.ema_200
-        rsi_cross_up    = indicator.prev_rsi < RSI_OVERSOLD  and indicator.rsi >= RSI_OVERSOLD
-        rsi_cross_down  = indicator.prev_rsi > RSI_OVERBOUGHT and indicator.rsi <= RSI_OVERBOUGHT
+        rsi_cross_up    = indicator.prev_rsi < RSI_OVERSOLD and indicator.rsi >= RSI_OVERSOLD
 
         # BUY: 상승 추세(EMA200 위) + RSI 과매도 상향 돌파
         if price_above_ema and rsi_cross_up:
@@ -61,16 +59,6 @@ class EMARSIStrategy(BaseStrategy):
                     f"EMA200({indicator.ema_200:,.0f}) 위, "
                     f"RSI {indicator.prev_rsi:.1f} → {indicator.rsi:.1f} 상향 돌파 (기준: {RSI_OVERSOLD:.0f}), "
                     f"level={position_count}/{MAX_POSITION_LEVELS}"
-                ),
-                timestamp=datetime.now(),
-            )
-
-        # SELL: RSI 과매수 하향 돌파 (추세 조건 없음 — 보유 포지션 차익 실현)
-        if rsi_cross_down:
-            return Signal(
-                action=Action.SELL,
-                reason=(
-                    f"RSI {indicator.prev_rsi:.1f} → {indicator.rsi:.1f} 하향 돌파 (기준: {RSI_OVERBOUGHT:.0f})"
                 ),
                 timestamp=datetime.now(),
             )

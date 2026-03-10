@@ -2,27 +2,29 @@
 from datetime import datetime
 from typing import Optional
 
-from config import STOP_LOSS, TAKE_PROFIT_1, TAKE_PROFIT_2  # OCP: thresholds live in config, not here
+from config import RSI_OVERBOUGHT, STOP_LOSS, TAKE_PROFIT_2  # OCP: thresholds live in config, not here
 from core.models import Action, Signal
 
 
 class RiskManager:
-    """Evaluates stop-loss and two-stage take-profit conditions only.
+    """Evaluates stop-loss, take-profit, and RSI-based exit conditions.
 
     Design notes:
-    - SRP: judges price-based risk, nothing else (no indicators, no order logic)
+    - SRP: judges price-based risk, nothing else (no order logic)
     - DIP: depends on config constants and core models, not concrete components
-    - Two-stage take-profit:
-        Stage 1 (TAKE_PROFIT_1 = +2%): emit PARTIAL_SELL if not yet partially sold
-        Stage 2 (TAKE_PROFIT_2 = +3%): emit FORCE_SELL (full exit)
-    - Stop-loss (-2%): emit FORCE_SELL (full exit)
+    - Priority order:
+        1. Stop-loss (-1.5%): emit FORCE_SELL
+        2. Take-profit (+3%): emit FORCE_SELL
+        3. RSI cross-down below RSI_OVERBOUGHT with pnl >= 0: emit SELL
     """
 
     def check(
         self,
         current_price: float,
         avg_entry_price: Optional[float],
-        partially_sold: bool = False,
+        partially_sold: bool = False,  # kept for interface compatibility, no longer used
+        rsi: Optional[float] = None,
+        prev_rsi: Optional[float] = None,
     ) -> Optional[Signal]:
         # Guard: no active position → nothing to protect
         if not avg_entry_price:
@@ -38,21 +40,24 @@ class RiskManager:
                 timestamp=datetime.now(),
             )
 
-        # Stage 2: full exit at TAKE_PROFIT_2 (+3%) — price condition only.
-        # RSI condition removed from TP2. Backtest showed RSI was triggering early
-        # exits at avg +0.48% instead of the intended +3%. Price-only condition retained.
         if pnl_ratio >= TAKE_PROFIT_2:
             return Signal(
                 action=Action.FORCE_SELL,
-                reason=f"Take-profit-2 triggered: {pnl_pct:.2f}%",
+                reason=f"Take-profit triggered: {pnl_pct:.2f}%",
                 timestamp=datetime.now(),
             )
 
-        # Stage 1: partial exit at TAKE_PROFIT_1 (+2%) — fires only once per trade cycle
-        if pnl_ratio >= TAKE_PROFIT_1 and not partially_sold:
+        # RSI cross-down: RSI falls below RSI_OVERBOUGHT while in profit
+        if (
+            rsi is not None
+            and prev_rsi is not None
+            and prev_rsi > RSI_OVERBOUGHT
+            and rsi <= RSI_OVERBOUGHT
+            and pnl_ratio >= 0.0
+        ):
             return Signal(
-                action=Action.PARTIAL_SELL,
-                reason=f"Take-profit-1 triggered: {pnl_pct:.2f}% (partial sell)",
+                action=Action.SELL,
+                reason=f"RSI {prev_rsi:.1f} → {rsi:.1f} 하향 돌파 (기준: {RSI_OVERBOUGHT:.0f}), pnl={pnl_pct:+.2f}%",
                 timestamp=datetime.now(),
             )
 

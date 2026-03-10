@@ -3,31 +3,22 @@ SYMBOL: str = "KRW-BTC"
 
 # RSI indicator
 RSI_PERIOD: int = 14
-RSI_OVERSOLD: float = 40.0    # BUY signal: RSI crosses above this threshold
-RSI_OVERBOUGHT: float = 60.0  # SELL signal: RSI crosses below this threshold
+RSI_OVERSOLD: float = 35.0    # BUY signal: RSI crosses above this threshold
+RSI_OVERBOUGHT: float = 65.0  # SELL signal: RSI crosses below this threshold
 
 # EMA trend filter
 EMA_PERIOD: int = 200
 
 # Risk management
-STOP_LOSS: float = -0.02      # Force-sell at -2% from avg entry price
+STOP_LOSS: float = -0.015     # Force-sell at -1.5% from avg entry price
 TAKE_PROFIT: float = 0.03     # Force-sell at +3% from avg entry price (legacy alias for TAKE_PROFIT_2)
-TAKE_PROFIT_1: float = 0.02   # +2% from avg entry → first partial sell (50%)
-TAKE_PROFIT_2: float = 0.03   # +3% from avg entry → full exit
+TAKE_PROFIT_2: float = 0.03   # +3% from avg entry → TP (full exit)
 
 # Order sizing
 POSITION_SIZE_RATIO: float = 0.20  # 20% of available cash per trade
-# POSITION_SIZE_RATIO=0.20 x 2 levels ≈ 36% max deployment.
-# ~64% cash reserve is intentional — acts as drawdown buffer. Do not increase without backtesting.
 
-# Pyramid re-entry
-# Reduced from 3 → 2 based on backtest analysis.
-# Level 3 accounted for 70% of stop-losses with ~49% capital at risk.
-# Level 2 cap reduces max deployed capital to ~36%, improving loss symmetry.
-MAX_POSITION_LEVELS: int = 2  # Maximum number of pyramid buy levels
-
-# Partial sell
-PARTIAL_SELL_RATIO: float = 0.5   # Fraction of BTC to sell at first take-profit
+# Single-entry strategy: only one position at a time (no pyramid)
+MAX_POSITION_LEVELS: int = 1  # Maximum number of position levels
 
 # Fees & balance
 FEE_RATE: float = 0.0005         # 0.05% per trade (Upbit KRW market)
